@@ -286,7 +286,7 @@ static char *resolve_python_relative(char *buf, size_t buf_size, const char *mod
  * part of an extensionless basename (e.g. "featureX.engine"). */
 static size_t strip_js_module_ext(const char *seg_start, size_t seg_len) {
     static const char *const extensions[] = {
-        ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json",
+        ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json", ".lua", ".luau",
     };
     for (size_t i = 0; i < sizeof(extensions) / sizeof(extensions[0]); i++) {
         size_t ext_len = strlen(extensions[i]);

@@ -102,6 +102,7 @@ typedef struct {
     /* Callable identity (#2061): signature suffix of this def's graph QN;
      * qualified_name stays the base QN. NULL = none (always, until enabled). */
     const char *sig;
+    const char *luau_export_names; // exported Luau callable names, pipe-separated
 } CBMLSPDef;
 
 // Parse source, build registry from defs + stdlib, run LSP.

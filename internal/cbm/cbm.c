@@ -21,6 +21,7 @@
 #include "lsp/java_lsp.h"
 #include "lsp/kotlin_lsp.h"
 #include "lsp/rust_lsp.h"
+#include "lsp/luau_lsp.h"
 #include "preprocessor.h"
 #include "sql_values.h" // #1735: literal INSERT rows kept out of the SQL parse
 #include "cpp_branch_views.h"
@@ -3037,6 +3038,9 @@ static CBMFileResult *extract_file_ex_body(const char *source, int source_len, C
     // refines the tree-sitter + textual-resolution graph with type info.
     uint64_t lsp_start = now_ns();
     if (!result->lsp_skipped) {
+        if (language == CBM_LANG_LUAU) {
+            cbm_run_luau_lsp(a, result, source, source_len, root);
+        }
         if (language == CBM_LANG_GO) {
             cbm_run_go_lsp(a, result, source, source_len, root);
         }

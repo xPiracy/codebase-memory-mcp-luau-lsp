@@ -362,7 +362,8 @@ static TSNode resolve_vimscript_func_name(TSNode node) {
 
 // Resolve function name for scripting/niche languages (Lua, OCaml, SQL, Zig, VimScript, Julia).
 static TSNode resolve_func_name_scripting(TSNode node, CBMLanguage lang, const char *kind) {
-    if (lang == CBM_LANG_LUA && strcmp(kind, "function_definition") == 0) {
+    if ((lang == CBM_LANG_LUA || lang == CBM_LANG_LUAU) &&
+        strcmp(kind, "function_definition") == 0) {
         return resolve_lua_func_name(node);
     }
     if (lang == CBM_LANG_OCAML && strcmp(kind, "value_definition") == 0) {

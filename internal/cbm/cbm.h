@@ -300,6 +300,7 @@ typedef struct {
      * values are escaped where the properties are written. Tail field:
      * zero-init stays valid. */
     const char **extra_props;
+    const char *luau_export_names; /* Pipe-separated callable names in a returned module table. */
 } CBMDefinition;
 
 /* Argument captured from a call expression */

@@ -849,6 +849,109 @@ static void parse_lua_imports(CBMExtractCtx *ctx) {
     ts_tree_cursor_delete(&cursor);
 }
 
+/* Luau imports are AST calls, not textual occurrences of require. */
+static const char *luau_import_path(CBMExtractCtx *ctx, TSNode value, int depth) {
+    if (ts_node_is_null(value) || depth > 64)
+        return NULL;
+    const char *kind = ts_node_type(value);
+    if (strcmp(kind, "string") == 0) {
+        if (ts_node_named_child_count(value) != 1)
+            return NULL; /* escaped or interpolated strings are not static paths */
+        TSNode content = ts_node_child_by_field_name(value, TS_FIELD("content"));
+        return ts_node_is_null(content) ? NULL : cbm_node_text(ctx->arena, content, ctx->source);
+    }
+    if (strcmp(kind, "identifier") == 0) {
+        const char *name = cbm_node_text(ctx->arena, value, ctx->source);
+        if (!name)
+            return NULL;
+        return strcmp(name, "script") == 0 ? "@script"
+               : strcmp(name, "game") == 0 ? "@roblox/game"
+                                           : NULL;
+    }
+    if (strcmp(kind, "function_call") == 0) {
+        TSNode callee = ts_node_child_by_field_name(value, TS_FIELD("name"));
+        TSNode args = ts_node_child_by_field_name(value, TS_FIELD("arguments"));
+        if (ts_node_is_null(callee) ||
+            strcmp(ts_node_type(callee), "method_index_expression") != 0 ||
+            ts_node_named_child_count(args) != 1)
+            return NULL;
+        const char *method = cbm_node_text(
+            ctx->arena, ts_node_child_by_field_name(callee, TS_FIELD("method")), ctx->source);
+        const char *base = luau_import_path(
+            ctx, ts_node_child_by_field_name(callee, TS_FIELD("table")), depth + 1);
+        TSNode arg = ts_node_named_child(args, 0);
+        const char *name = luau_import_path(ctx, arg, depth + 1);
+        if (!base || !name || strcmp(ts_node_type(arg), "string") != 0 || !method ||
+            strchr(name, '/') || !name[0])
+            return NULL;
+        if (strcmp(method, "WaitForChild") != 0 &&
+            !(strcmp(method, "GetService") == 0 && strcmp(base, "@roblox/game") == 0))
+            return NULL;
+        size_t n = strlen(base);
+        return cbm_arena_sprintf(ctx->arena, "%s%s%s", base, n && base[n - 1] == '/' ? "" : "/",
+                                 name);
+    }
+    if (strcmp(kind, "dot_index_expression") == 0) {
+        TSNode table = ts_node_child_by_field_name(value, TS_FIELD("table"));
+        TSNode field = ts_node_child_by_field_name(value, TS_FIELD("field"));
+        const char *base = luau_import_path(ctx, table, depth + 1);
+        const char *name = cbm_node_text(ctx->arena, field, ctx->source);
+        if (!base || !name)
+            return NULL;
+        if (strcmp(name, "Parent") == 0) {
+            if (strcmp(base, "@script") == 0)
+                return "./";
+            if (strcmp(base, "./") == 0)
+                return "../";
+            if (strcmp(base, "../") == 0 || strstr(base, "../../") == base)
+                return cbm_arena_sprintf(ctx->arena, "%s../", base);
+            return NULL;
+        }
+        size_t n = strlen(base);
+        return cbm_arena_sprintf(ctx->arena, "%s%s%s", base, n && base[n - 1] == '/' ? "" : "/",
+                                 name);
+    }
+    return NULL;
+}
+
+static void parse_luau_import_node(CBMExtractCtx *ctx, TSNode node, int depth) {
+    if (ts_node_is_null(node) || depth > 512)
+        return;
+    if (strcmp(ts_node_type(node), "function_call") == 0) {
+        TSNode name = ts_node_child_by_field_name(node, TS_FIELD("name"));
+        TSNode args = ts_node_child_by_field_name(node, TS_FIELD("arguments"));
+        if (!ts_node_is_null(name) && strcmp(ts_node_type(name), "identifier") == 0 &&
+            strcmp(cbm_node_text(ctx->arena, name, ctx->source), "require") == 0 &&
+            ts_node_named_child_count(args) == 1) {
+            const char *path = luau_import_path(ctx, ts_node_named_child(args, 0), 0);
+            TSNode values = ts_node_parent(node);
+            TSNode assignment = ts_node_parent(values);
+            const char *alias = NULL;
+            if (strcmp(ts_node_type(values), "expression_list") == 0 &&
+                strcmp(ts_node_type(assignment), "assignment_statement") == 0) {
+                TSNode vars = ts_node_named_child(assignment, 0);
+                for (uint32_t i = 0; i < ts_node_named_child_count(values); i++) {
+                    TSNode var = ts_node_named_child(vars, i);
+                    if (ts_node_eq(ts_node_named_child(values, i), node) && !ts_node_is_null(var) &&
+                        strcmp(ts_node_type(var), "identifier") == 0)
+                        alias = cbm_node_text(ctx->arena, var, ctx->source);
+                }
+            }
+            if (path) {
+                /* Preserve side-effect and returned/nested dependencies without
+                 * inventing a lexical binding for them. */
+                CBMImport imp = {.local_name = alias ? alias
+                                                     : cbm_arena_sprintf(ctx->arena, "@require.%u",
+                                                                         ts_node_start_byte(node)),
+                                 .module_path = path};
+                cbm_imports_push(&ctx->result->imports, ctx->arena, imp);
+            }
+        }
+    }
+    for (uint32_t i = 0; i < ts_node_named_child_count(node); i++)
+        parse_luau_import_node(ctx, ts_node_named_child(node, i), depth + 1);
+}
+
 // --- R imports: library()/require()/source() + box::use() (#218) ---
 
 // Emit an IMPORTS edge for a module path string (strips a trailing [symbols]
@@ -3040,6 +3143,9 @@ void cbm_extract_imports(CBMExtractCtx *ctx) {
         break;
     case CBM_LANG_RUBY:
         parse_ruby_imports(ctx);
+        break;
+    case CBM_LANG_LUAU:
+        parse_luau_import_node(ctx, ctx->root, 0);
         break;
     case CBM_LANG_LUA:
         parse_lua_imports(ctx);

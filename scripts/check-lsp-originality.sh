@@ -27,7 +27,7 @@
 # USAGE
 #   bash scripts/check-lsp-originality.sh [--lang NAME] [--refresh]
 #                                         [--list-candidates] [--help]
-#     --lang NAME        scan against ONE reference only (py|ts|go|cs|c|java|kotlin|rust|php|perl)
+#     --lang NAME        scan against ONE reference only (py|ts|go|cs|c|java|kotlin|rust|php|perl|luau)
 #     --refresh          re-fetch reference sources even if cached
 #     --list-candidates  print the extracted local tokens and exit (no fetch; self-test)
 #   Exit 0 = no verbatim overlap found.  Exit 1 = overlap(s) to review by a human.
@@ -49,6 +49,7 @@ MIN_TOKENS="${LSP_ORIG_MIN_TOKENS:-50}"   # jscpd structural-clone min token run
 
 # Reference manifest:  lang | git URL | sparse subpath (light checkout)
 REFS=(
+  "luau|https://github.com/JohnnyMorganz/luau-lsp|src/operations,src/platform/roblox"
   "py|https://github.com/microsoft/pyright|packages/pyright-internal/src"
   "ts|https://github.com/microsoft/TypeScript|src/compiler,src/services"
   "go|https://github.com/golang/tools|gopls/internal"

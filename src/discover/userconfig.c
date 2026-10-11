@@ -101,6 +101,7 @@ static const lang_name_entry_t LANG_NAME_TABLE[] = {
     {"csharp", CBM_LANG_CSHARP},
     {"php", CBM_LANG_PHP},
     {"lua", CBM_LANG_LUA},
+    {"luau", CBM_LANG_LUAU},
     {"scala", CBM_LANG_SCALA},
     {"kotlin", CBM_LANG_KOTLIN},
     {"ruby", CBM_LANG_RUBY},

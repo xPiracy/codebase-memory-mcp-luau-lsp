@@ -29,3 +29,5 @@
 #include "lsp/rust_proc_macros.c"
 #include "lsp/rust_rustdoc.c"
 #include "lsp/rust_lsp.c"
+
+#include "lsp/luau_lsp.c"

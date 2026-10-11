@@ -940,6 +940,60 @@ static void parse_package_swift(const char *source, int source_len, const char *
     swift_scan_targets(source, end, rel_path, entries);
 }
 
+/* Rojo sourcemaps connect virtual DataModel names to source files. Reuse the
+ * manifest map so resolution workers consume one immutable project mapping. */
+static void pkgmap_luau_sourcemap_node(yyjson_val *node, const char *virtual_path,
+                                       const char *rel_path, cbm_pkg_entries_t *entries,
+                                       int depth) {
+    if (!yyjson_is_obj(node) || depth > 64 || strlen(virtual_path) >= PKGMAP_PATH_BUF)
+        return;
+    const char *class_name = yyjson_get_str(yyjson_obj_get(node, "className"));
+    yyjson_val *files = yyjson_obj_get(node, "filePaths");
+    if (class_name && strcmp(class_name, "ModuleScript") == 0 && yyjson_is_arr(files)) {
+        size_t idx, max;
+        yyjson_val *file;
+        yyjson_arr_foreach(files, idx, max, file) {
+            const char *path = yyjson_get_str(file);
+            if (!path || (!ends_with(path, ".lua") && !ends_with(path, ".luau")) ||
+                path[0] == '/' || strchr(path, ':') || strstr(path, ".."))
+                continue;
+            char *entry = build_entry_path(rel_path, path);
+            char *key = strdup(virtual_path);
+            if (entry && key)
+                pkg_entries_push(entries, key, entry);
+            else {
+                free(entry);
+                free(key);
+            }
+            break;
+        }
+    }
+    yyjson_val *children = yyjson_obj_get(node, "children");
+    size_t idx, max;
+    yyjson_val *child;
+    yyjson_arr_foreach(children, idx, max, child) {
+        const char *name = yyjson_get_str(yyjson_obj_get(child, "name"));
+        if (!name || !name[0] || strchr(name, '/'))
+            continue;
+        char path[PKGMAP_PATH_BUF];
+        int n = snprintf(path, sizeof(path), "%s/%s", virtual_path, name);
+        if (n > 0 && (size_t)n < sizeof(path))
+            pkgmap_luau_sourcemap_node(child, path, rel_path, entries, depth + 1);
+    }
+}
+
+static void parse_luau_sourcemap(const char *source, int source_len, const char *rel_path,
+                                 cbm_pkg_entries_t *entries) {
+    yyjson_doc *doc = yyjson_read(source, (size_t)source_len, 0);
+    if (!doc)
+        return;
+    yyjson_val *root = yyjson_doc_get_root(doc);
+    const char *class_name = yyjson_get_str(yyjson_obj_get(root, "className"));
+    if (class_name && strcmp(class_name, "DataModel") == 0)
+        pkgmap_luau_sourcemap_node(root, "@roblox/game", rel_path, entries, 0);
+    yyjson_doc_free(doc);
+}
+
 /* ── Public: manifest detection + parsing ──────────────────────── */
 
 bool cbm_pkgmap_try_parse(const char *basename, const char *rel_path, const char *source,
@@ -948,6 +1002,10 @@ bool cbm_pkgmap_try_parse(const char *basename, const char *rel_path, const char
         return false;
     }
 
+    if (strcmp(basename, "sourcemap.json") == 0) {
+        parse_luau_sourcemap(source, source_len, rel_path, entries);
+        return true;
+    }
     if (strcmp(basename, "package.json") == 0) {
         parse_package_json(source, source_len, rel_path, entries);
         return true;
@@ -1060,12 +1118,12 @@ static bool is_pkgmap_manifest_basename(const char *basename) {
     if (!basename) {
         return false;
     }
-    if (strcmp(basename, "package.json") == 0 || strcmp(basename, "go.mod") == 0 ||
-        strcmp(basename, "Cargo.toml") == 0 || strcmp(basename, "pyproject.toml") == 0 ||
-        strcmp(basename, "composer.json") == 0 || strcmp(basename, "pubspec.yaml") == 0 ||
-        strcmp(basename, "pom.xml") == 0 || strcmp(basename, "build.gradle") == 0 ||
-        strcmp(basename, "build.gradle.kts") == 0 || strcmp(basename, "mix.exs") == 0 ||
-        strcmp(basename, "Package.swift") == 0) {
+    if (strcmp(basename, "sourcemap.json") == 0 || strcmp(basename, "package.json") == 0 ||
+        strcmp(basename, "go.mod") == 0 || strcmp(basename, "Cargo.toml") == 0 ||
+        strcmp(basename, "pyproject.toml") == 0 || strcmp(basename, "composer.json") == 0 ||
+        strcmp(basename, "pubspec.yaml") == 0 || strcmp(basename, "pom.xml") == 0 ||
+        strcmp(basename, "build.gradle") == 0 || strcmp(basename, "build.gradle.kts") == 0 ||
+        strcmp(basename, "mix.exs") == 0 || strcmp(basename, "Package.swift") == 0) {
         return true;
     }
     return ends_with(basename, ".gemspec");

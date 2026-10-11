@@ -1803,6 +1803,7 @@ extern void suite_perl_lsp(void);
 extern void suite_scope(void);
 extern void suite_type_rep(void);
 extern void suite_py_lsp(void);
+extern void suite_luau_lsp(void);
 extern void suite_py_lsp_bench(void);
 extern void suite_py_lsp_stress(void);
 extern void suite_py_lsp_scale(void);
@@ -2265,6 +2266,7 @@ int main(int argc, char **argv) {
     RUN_SELECTED_SUITE_PERF(cs_lsp_bench);
     RUN_SELECTED_SUITE(perl_lsp);
     RUN_SELECTED_SUITE(py_lsp);
+    RUN_SELECTED_SUITE(luau_lsp);
     RUN_SELECTED_SUITE(kotlin_lsp);
     RUN_SELECTED_SUITE(rust_lsp);
     RUN_SELECTED_SUITE_PERF(py_lsp_bench);

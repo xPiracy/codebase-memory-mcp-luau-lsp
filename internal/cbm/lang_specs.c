@@ -1295,7 +1295,7 @@ static const char *luau_branch_types[] = {"if_statement", "while_statement", "re
                                           "for_statement", NULL};
 static const char *luau_var_types[] = {"variable_declaration", NULL};
 static const char *luau_assign_types[] = {"assignment_statement", NULL};
-static const char *luau_module_types[] = {"program", NULL};
+static const char *luau_module_types[] = {"chunk", NULL};
 static const char *janet_module_types[] = {"source", NULL};
 static const char *sway_func_types[] = {"function_item", "closure_expression",
                                         "function_signature_item", NULL};

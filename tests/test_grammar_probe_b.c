@@ -546,7 +546,7 @@ TEST(luau_function_nodes) {
         "return { clamp = clamp, lerp = lerp }\n");
     int fns = store ? pb_callable_nodes(store, lp.project) : -1;
     pb_cleanup(&lp, store);
-    ASSERT_TRUE(fns >= 1); /* clamp, lerp */
+    ASSERT_TRUE(fns >= 2); /* clamp, lerp */
     PASS();
 }
 

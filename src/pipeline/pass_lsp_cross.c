@@ -438,6 +438,8 @@ static int pxc_build_lsp_def(CBMArena *arena, const CBMDefinition *src, const ch
     /* Copies, not borrows: a result may be parked on disk (spill mode) the
      * moment the collector is done with it; the def list outlives it. */
     dst->short_name = cbm_arena_strdup(arena, src->name);
+    dst->luau_export_names =
+        src->luau_export_names ? cbm_arena_strdup(arena, src->luau_export_names) : NULL;
     dst->label = label;
     dst->def_module_qn = module_qn;
     dst->namespace_name = namespace_name ? cbm_arena_strdup(arena, namespace_name) : NULL;
@@ -1132,6 +1134,7 @@ void cbm_pxc_ts_modes(CBMLanguage lang, const char *rel_path, bool *out_js, bool
 /* Returns true when this language has a cross-file LSP wired up. */
 bool cbm_pxc_has_cross_lsp(CBMLanguage lang) {
     switch (lang) {
+    case CBM_LANG_LUAU:
     case CBM_LANG_GO:
     case CBM_LANG_C:
     case CBM_LANG_CPP:
@@ -1483,6 +1486,10 @@ void cbm_pxc_run_one(CBMLanguage lang, CBMFileResult *r, const char *source, int
     memset(&synthetic_calls, 0, sizeof(synthetic_calls));
 
     switch (lang) {
+    case CBM_LANG_LUAU:
+        cbm_run_luau_lsp_cross_result(&scratch, source, source_len, module_qn, defs, def_count,
+                                      imp_names, imp_qns, imp_count, tree, &out, r);
+        break;
     case CBM_LANG_GO:
         cbm_run_go_lsp_cross(&scratch, source, source_len, module_qn, defs, def_count, imp_names,
                              imp_qns, imp_count, tree, &out);

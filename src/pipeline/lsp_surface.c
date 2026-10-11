@@ -93,6 +93,7 @@ static char *surface_file_to_json(const CBMFileResult *result, const CBMLSPDef *
         yyjson_mut_val *o = yyjson_mut_obj(doc);
         add_str_or_null(doc, o, "qn", d->qualified_name);
         add_str_or_null(doc, o, "sn", d->short_name);
+        add_str_or_null(doc, o, "lex", d->luau_export_names);
         add_str_or_null(doc, o, "lb", d->label);
         add_str_or_null(doc, o, "rt", d->receiver_type);
         add_str_or_null(doc, o, "dm", d->def_module_qn);
@@ -360,6 +361,7 @@ int cbm_lsp_surface_defs_from_json(CBMArena *arena, const char *defs_json, CBMLS
         d->label = arena_str_or_null(arena, yyjson_obj_get(o, "lb"));
         d->receiver_type = arena_str_or_null(arena, yyjson_obj_get(o, "rt"));
         d->def_module_qn = arena_str_or_null(arena, yyjson_obj_get(o, "dm"));
+        d->luau_export_names = arena_str_or_null(arena, yyjson_obj_get(o, "lex"));
         d->return_types = arena_str_or_null(arena, yyjson_obj_get(o, "ret"));
         d->embedded_types = arena_str_or_null(arena, yyjson_obj_get(o, "emb"));
         d->field_defs = arena_str_or_null(arena, yyjson_obj_get(o, "fd"));
