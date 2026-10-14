@@ -80,6 +80,18 @@ GATE_REQUIREMENTS = {
     "smoke": ["!cancelled()", "needs.build.result == 'success'"],
     "soak": ["!cancelled()", "needs.build.result == 'success'"],
     "release-draft": ["!cancelled()", "!failure()"],
+    "publish-registries": [
+        "!cancelled()", "!failure()", "needs.verify.result == 'success'",
+        "github.repository == 'DeusData/codebase-memory-mcp'",
+    ],
+    "publish-mcp-registry": [
+        "github.repository == 'DeusData/codebase-memory-mcp'",
+    ],
+    "publish-final": [
+        "!cancelled()", "!failure()", "needs.verify.result == 'success'",
+        "(github.repository == 'DeusData/codebase-memory-mcp' && needs.publish-registries.result == 'success')",
+        "(github.repository != 'DeusData/codebase-memory-mcp' && needs.publish-registries.result == 'skipped')",
+    ],
 }
 for job, required in GATE_REQUIREMENTS.items():
     if job not in blocks:
