@@ -313,6 +313,8 @@ jobs:
     # the publish chain; the draft itself proves smoke and soak both succeeded.
     if: ${{ !cancelled() && !failure() && needs.security.result == 'success' && needs.release-draft.result == 'success' }}
     runs-on: ubuntu-latest
+    # Match the environment used when scanning the binary candidates.
+    environment: secrets
     permissions:
       contents: write
     steps:

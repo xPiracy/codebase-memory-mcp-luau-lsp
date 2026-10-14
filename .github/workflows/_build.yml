@@ -302,6 +302,8 @@ jobs:
   select-package:
     needs: [build-unix, build-windows, build-windows-arm64, build-linux-portable]
     runs-on: ubuntu-latest
+    # VirusTotal credentials are scoped to this GitHub environment.
+    environment: secrets
     timeout-minutes: 330
     permissions:
       contents: read
